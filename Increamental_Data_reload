@@ -1,0 +1,50 @@
+//Loading Data from qvd
+SENSORS:
+LOAD
+    header_endpointKeyHash_string,
+    event_temperature,
+    event_humidity,
+    event_timestamp
+FROM [lib://myFolder/Sensors.qvd]
+(qvd);
+
+
+//Find Last Modified Timestamp
+Last_Updated_Timestamp:
+load Max(event_timestamp) as MaxTimestamp
+Resident SENSORS;
+
+//Store Last modified Timestamp to variable
+Let Last_Updated_Timestamp  = Peek('MaxTimestamp',0,'Last_Updated_Timestamp');
+
+//Delete Table
+Drop Table SENSORS;
+
+//Connect to your Database
+LIB CONNECT TO 'MongoDB_(Beta)_192.168.1.xxx';
+
+//Load Increamental Data
+NEWSENSORS:
+LOAD  
+	header_endpointKeyHash_string, 
+	event_temperature, 
+	event_humidity, 
+	event_timestamp;
+SELECT  
+	[header_endpointKeyHash_string], 
+	[event_temperature], 
+	[event_humidity], 
+	[event_timestamp] 
+FROM database.[40965161313046691350] where event_timestamp > $(Last_Updated_Timestamp);
+	 
+//Concatenate the new values with existing qvd.
+Concatenate
+LOAD header_endpointKeyHash_string, 
+	event_temperature, 
+	event_humidity, 
+	event_timestamp
+FROM [lib://myFolder/Sensors.qvd]
+(qvd);
+
+//Store the values in qvd.
+store NEWSENSORS into [lib://myFolder/Sensors.qvd](qvd);
